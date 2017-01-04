@@ -138,7 +138,21 @@ public abstract class SsoLoginServlet extends HttpServlet {
                 redirectUrl = getDashboardUrl();
             }
         }
+        redirectUrl = filterRedirectUrl(redirectUrl);
         response.sendRedirect(redirectUrl);
+    }
+    
+    /**
+     * Filters a redirect URL before redirection happens.
+     * <p>
+     * This method should be overridden to have final control of the redirect URL.
+     * 
+     * @param redirectUrl The redirect URL to be filtered.
+     * @return The filtered redirect URL.
+     */
+    protected String filterRedirectUrl(String redirectUrl) {
+        // Default implementation just passes through the URL
+        return redirectUrl;
     }
 
     protected void redirectToLoginWithSAMLError(HttpServletResponse response, Exception exception, String string) throws ServletException {
