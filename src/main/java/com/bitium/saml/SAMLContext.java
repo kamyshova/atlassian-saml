@@ -53,13 +53,14 @@ public class SAMLContext {
 	
 	public SAMLContext(HttpServletRequest request, SAMLConfig configuration) throws ConfigurationException, CertificateException, UnsupportedEncodingException, MetadataProviderException, ServletException, ResourceException {
 		configuration.setDefaultBaseUrl(getDefaultBaseURL(request));
-		
-		idpKeyManager = new IdpKeyManager(configuration.getIdpEntityId(), configuration.getX509Certificate());
+
 		SpMetadataGenerator spMetadataGenerator = new SpMetadataGenerator();
 		MetadataProvider spMetadataProvider = spMetadataGenerator.generate(configuration);
 		IdpMetadataGenerator idpMetadataGenerator = new IdpMetadataGenerator();
 		MetadataProvider idpMetadataProvider = idpMetadataGenerator.generate(configuration);
-		
+
+		idpKeyManager = idpMetadataGenerator.keyManager();
+
 		metadataManager = new MetadataManager(Arrays.asList(spMetadataProvider, idpMetadataProvider));
 		metadataManager.setKeyManager(idpKeyManager);
 		metadataManager.setHostedSPName(configuration.getSpEntityId());

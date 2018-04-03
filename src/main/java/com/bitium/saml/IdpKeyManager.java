@@ -34,8 +34,7 @@ public class IdpKeyManager extends AbstractCredentialResolver implements KeyMana
 		credential.setEntityId(entityId);
 		credential.setEntityCertificate(certificate);
 	}
-	
-	@Override
+
 	public Credential getCredential(String key) {
 		if (key != null && entityId != null && key.equals(entityId)) {
 			return credential;
@@ -44,17 +43,13 @@ public class IdpKeyManager extends AbstractCredentialResolver implements KeyMana
 		}
 	}
 
-	@Override
 	public Credential getDefaultCredential() {
 		return getCredential(entityId);
 	}
 
-	@Override
 	public String getDefaultCredentialName() {
 		return entityId;
 	}
-
-	@Override
 	public Set<String> getAvailableCredentials() {
 		return availableCredentials;
 	}
@@ -63,8 +58,7 @@ public class IdpKeyManager extends AbstractCredentialResolver implements KeyMana
 	public Iterable<Credential> resolve(CriteriaSet criteriaSet) throws SecurityException {
 		return Arrays.asList(getCredential(criteriaSet.get(EntityIDCriteria.class).getEntityID()));
 	}
-	
-	@Override
+
 	public X509Certificate getCertificate(String key) {
 		if (key != null && entityId != null && key.equals(entityId)) {
 			return certificate;
