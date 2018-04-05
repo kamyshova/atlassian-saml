@@ -22,7 +22,8 @@ public class SAMLConfig {
     public static final String AUTO_CREATE_USER_SETTING = "saml2.autoCreateUser";
     public static final String AUTO_CREATE_USER_DEFAULT_GROUP_SETTING = "saml2.autoCreateUserDefaultGroup";
     public static final String MAX_AUTHENTICATION_AGE = "saml2.maxAuthenticationAge";
-    private File federationMetadata = null;
+    public static final String SP_ENTITY_ID_SETTING = "saml2.spEntityId";
+    private File metadataFile = null;
 
     public void setPluginSettingsFactory(PluginSettingsFactory pluginSettingsFactory) {
         this.pluginSettings = pluginSettingsFactory.createGlobalSettings();
@@ -72,8 +73,12 @@ public class SAMLConfig {
 		pluginSettings.put(MAX_AUTHENTICATION_AGE, String.valueOf(maxAuthenticationAge));
 	}
 
-    public void setFederationMetadata(final File federationMetadata) {
-        this.federationMetadata = federationMetadata;
+    public void setSpEntityId(final String spEntityId) {
+        pluginSettings.put(SP_ENTITY_ID_SETTING, spEntityId);
+    }
+
+    public void setMetadataFile(final File metadataFile) {
+        this.metadataFile = metadataFile;
     }
 	
 	public long getMaxAuthenticationAge() {
@@ -150,12 +155,12 @@ public class SAMLConfig {
     }
 
     public String getSpEntityId() {
-        return defaultBaseURL + "/" + getAlias();
+        return StringUtils.defaultString((String)pluginSettings.get(SP_ENTITY_ID_SETTING));
     }
 
-    public File getFederationMetadata() {
-        if (federationMetadata != null) {
-            return federationMetadata;
+    public File getMetadataFile() {
+        if (metadataFile != null) {
+            return metadataFile;
         } else {
             throw new RuntimeException("Federation metadata file is missing");
         }
