@@ -1,10 +1,10 @@
 package com.bitium.saml.config;
 
+import java.io.File;
 import org.apache.commons.lang.StringUtils;
 
 import com.atlassian.sal.api.pluginsettings.PluginSettings;
 import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
-import java.lang.Number;
 
 public class SAMLConfig {
 
@@ -21,20 +21,24 @@ public class SAMLConfig {
     public static final String REDIRECT_URL_SETTING = "saml2.redirectUrl";
     public static final String AUTO_CREATE_USER_SETTING = "saml2.autoCreateUser";
     public static final String AUTO_CREATE_USER_DEFAULT_GROUP_SETTING = "saml2.autoCreateUserDefaultGroup";
-	public static final String MAX_AUTHENTICATION_AGE = "saml2.maxAuthenticationAge";
+    public static final String MAX_AUTHENTICATION_AGE = "saml2.maxAuthenticationAge";
+    private File federationMetadata = null;
 
     public void setPluginSettingsFactory(PluginSettingsFactory pluginSettingsFactory) {
         this.pluginSettings = pluginSettingsFactory.createGlobalSettings();
     }
 
+    @Deprecated
     public void setLoginUrl(String loginUrl) {
         pluginSettings.put(LOGIN_URL_SETTING, loginUrl);
     }
 
+    @Deprecated
     public void setLogoutUrl(String logoutUrl) {
         pluginSettings.put(LOGOUT_URL_SETTING, logoutUrl);
     }
 
+    @Deprecated
     public void setEntityId(String entityId) {
         pluginSettings.put(ENTITY_ID_SETTING, entityId);
     }
@@ -43,6 +47,7 @@ public class SAMLConfig {
         pluginSettings.put(UID_ATTRIBUTE_SETTING, uidAttribute);
     }
 
+    @Deprecated
     public void setX509Certificate(String x509Certificate) {
         pluginSettings.put(X509_CERTIFICATE_SETTING, x509Certificate);
     }
@@ -66,6 +71,10 @@ public class SAMLConfig {
 	public void setMaxAuthenticationAge(long maxAuthenticationAge) {
 		pluginSettings.put(MAX_AUTHENTICATION_AGE, String.valueOf(maxAuthenticationAge));
 	}
+
+    public void setFederationMetadata(final File federationMetadata) {
+        this.federationMetadata = federationMetadata;
+    }
 	
 	public long getMaxAuthenticationAge() {
 		String value=StringUtils.defaultString((String)pluginSettings.get(MAX_AUTHENTICATION_AGE));
@@ -100,14 +109,17 @@ public class SAMLConfig {
         return StringUtils.defaultString((String)pluginSettings.get(AUTO_CREATE_USER_DEFAULT_GROUP_SETTING));
     }
 
+    @Deprecated
     public String getLoginUrl() {
         return StringUtils.defaultString((String)pluginSettings.get(LOGIN_URL_SETTING));
     }
 
+    @Deprecated
     public String getLogoutUrl() {
         return StringUtils.defaultString((String)pluginSettings.get(LOGOUT_URL_SETTING));
     }
 
+    @Deprecated
     public String getIdpEntityId() {
         return StringUtils.defaultString((String)pluginSettings.get(ENTITY_ID_SETTING));
     }
@@ -115,8 +127,8 @@ public class SAMLConfig {
     public String getUidAttribute() {
         return StringUtils.defaultString((String)pluginSettings.get(UID_ATTRIBUTE_SETTING), "NameID");
     }
-	
 
+    @Deprecated
     public String getX509Certificate() {
         return StringUtils.defaultString((String)pluginSettings.get(X509_CERTIFICATE_SETTING));
     }
@@ -139,5 +151,13 @@ public class SAMLConfig {
 
     public String getSpEntityId() {
         return defaultBaseURL + "/" + getAlias();
+    }
+
+    public File getFederationMetadata() {
+        if (federationMetadata != null) {
+            return federationMetadata;
+        } else {
+            throw new RuntimeException("Federation metadata file is missing");
+        }
     }
 }
