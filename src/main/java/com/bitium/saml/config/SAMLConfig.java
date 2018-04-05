@@ -1,14 +1,26 @@
 package com.bitium.saml.config;
 
 import java.io.File;
+import java.util.List;
 import org.apache.commons.lang.StringUtils;
 
 import com.atlassian.sal.api.pluginsettings.PluginSettings;
 import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
+import org.opensaml.common.xml.SAMLConstants;
+import org.opensaml.saml2.metadata.Endpoint;
+import org.opensaml.saml2.metadata.EntityDescriptor;
+import org.opensaml.saml2.metadata.RoleDescriptor;
+import org.opensaml.saml2.metadata.SingleLogoutService;
+import org.opensaml.saml2.metadata.provider.FilesystemMetadataProvider;
+import org.opensaml.saml2.metadata.provider.MetadataProvider;
+import org.opensaml.saml2.metadata.provider.MetadataProviderException;
+import org.opensaml.xml.Configuration;
+import org.opensaml.xml.XMLObject;
 
 public class SAMLConfig {
 
     private PluginSettings pluginSettings;
+    private MetadataProvider metadataProvider;
 
     private String defaultBaseURL;
 
@@ -23,10 +35,17 @@ public class SAMLConfig {
     public static final String AUTO_CREATE_USER_DEFAULT_GROUP_SETTING = "saml2.autoCreateUserDefaultGroup";
     public static final String MAX_AUTHENTICATION_AGE = "saml2.maxAuthenticationAge";
     public static final String SP_ENTITY_ID_SETTING = "saml2.spEntityId";
-    private File metadataFile = null;
 
     public void setPluginSettingsFactory(PluginSettingsFactory pluginSettingsFactory) {
         this.pluginSettings = pluginSettingsFactory.createGlobalSettings();
+    }
+
+    public void setMetadataProvider(final MetadataProvider metadataProvider) {
+        this.metadataProvider = metadataProvider;
+    }
+
+    public MetadataProvider getMetadataProvider() {
+        return metadataProvider;
     }
 
     @Deprecated
@@ -78,7 +97,17 @@ public class SAMLConfig {
     }
 
     public void setMetadataFile(final File metadataFile) {
-        this.metadataFile = metadataFile;
+        if (metadataFile == null) {
+            throw new IllegalArgumentException("Metadata file should not be null");
+        }
+        try {
+            final FilesystemMetadataProvider metadataProvider = new FilesystemMetadataProvider(metadataFile);
+            metadataProvider.setParserPool(Configuration.getParserPool());
+            metadataProvider.initialize();
+            this.metadataProvider = metadataProvider;
+        } catch (MetadataProviderException e) {
+            throw new RuntimeException("Metadata provider wasn't created for the given metadata file", e);
+        }
     }
 	
 	public long getMaxAuthenticationAge() {
@@ -119,9 +148,48 @@ public class SAMLConfig {
         return StringUtils.defaultString((String)pluginSettings.get(LOGIN_URL_SETTING));
     }
 
-    @Deprecated
     public String getLogoutUrl() {
-        return StringUtils.defaultString((String)pluginSettings.get(LOGOUT_URL_SETTING));
+        if (metadataProvider != null) {
+            try {
+                final String entityId = retrieveEntityId(metadataProvider);
+                final EntityDescriptor entityDescriptor = metadataProvider.getEntityDescriptor(entityId);
+                final List<RoleDescriptor> roleDescriptors = entityDescriptor.getRoleDescriptors();
+                final String logoutUrl = retrieveLogoutUrl(roleDescriptors);
+                if (logoutUrl != null) {
+                    return logoutUrl;
+                } else {
+                    throw new RuntimeException("Logout url wasn't found in metadata file");
+                }
+            } catch (MetadataProviderException e) {
+                throw new RuntimeException("Logout url could not be retrieved from metadata provider", e);
+            }
+        } else {
+            throw new RuntimeException("Logout url could not be retrieved because metadata provider is not set");
+        }
+    }
+
+    private String retrieveLogoutUrl(final List<RoleDescriptor> roleDescriptors) {
+        for (RoleDescriptor roleDescriptor: roleDescriptors) {
+            final List<Endpoint> endpoints = roleDescriptor
+                    .getEndpoints(SingleLogoutService.DEFAULT_ELEMENT_NAME);
+
+            for (Endpoint endpoint: endpoints) {
+                if (endpoint.getBinding().equals(SAMLConstants.SAML2_REDIRECT_BINDING_URI)) {
+                    return endpoint.getLocation();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String retrieveEntityId(final MetadataProvider metadataProvider) throws MetadataProviderException {
+        final XMLObject metadata = metadataProvider.getMetadata();
+        if (metadata instanceof EntityDescriptor) {
+            final EntityDescriptor entity = (EntityDescriptor) metadata;
+            return entity.getEntityID();
+        } else {
+            throw new RuntimeException("Multiple entity descriptors is not supported yet.");
+        }
     }
 
     @Deprecated
@@ -158,11 +226,4 @@ public class SAMLConfig {
         return StringUtils.defaultString((String)pluginSettings.get(SP_ENTITY_ID_SETTING));
     }
 
-    public File getMetadataFile() {
-        if (metadataFile != null) {
-            return metadataFile;
-        } else {
-            throw new RuntimeException("Federation metadata file is missing");
-        }
-    }
 }

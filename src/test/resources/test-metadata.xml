@@ -1,0 +1,15 @@
+<EntityDescriptor ID="fdsffds"
+                  entityID="aaaa"
+                  xmlns="urn:oasis:names:tc:SAML:2.0:metadata">
+    <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+                             Location="logoutUrl"/>
+        <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                             Location="logoutUrl"/>
+        <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+                             Location="loginUrl"/>
+        <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                             Location="loginUrl"/>
+    </IDPSSODescriptor>
+    <ContactPerson contactType="support"/>
+</EntityDescriptor>

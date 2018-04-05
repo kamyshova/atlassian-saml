@@ -10,10 +10,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * For now it does only one function: returns idpRequired Field
+ * Servlet which returns different plugin saml config parameters.
  *
- * This might probably get expanded to return json with other fields as well
- *
+ * This might probably get expanded to return json with other fields as well.
  */
 public class ConfigAjaxServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
