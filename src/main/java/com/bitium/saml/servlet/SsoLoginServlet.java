@@ -5,12 +5,14 @@ import com.bitium.saml.SAMLContext;
 import com.bitium.saml.config.SAMLConfig;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.opensaml.common.xml.SAMLConstants;
 import org.opensaml.ws.transport.http.HttpServletRequestAdapter;
 import org.springframework.security.saml.SAMLCredential;
 import org.springframework.security.saml.context.SAMLMessageContext;
 import org.springframework.security.saml.util.SAMLUtil;
-import org.springframework.security.saml.websso.*;
+import org.springframework.security.saml.websso.WebSSOProfile;
+import org.springframework.security.saml.websso.WebSSOProfileConsumerImpl;
+import org.springframework.security.saml.websso.WebSSOProfileImpl;
+import org.springframework.security.saml.websso.WebSSOProfileOptions;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -52,7 +54,7 @@ public abstract class SsoLoginServlet extends HttpServlet {
 
             // Generate options for the current SSO request
             WebSSOProfileOptions options = new WebSSOProfileOptions();
-            options.setBinding(SAMLConstants.SAML2_POST_BINDING_URI);
+            options.setBinding(saml2Config.getRequestBindingSetting());
             options.setIncludeScoping(false);
 
             // Send request

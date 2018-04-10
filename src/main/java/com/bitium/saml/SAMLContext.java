@@ -46,10 +46,6 @@ public class SAMLContext {
 	private MetadataGenerator spMetadataGenerator;
 	private SAMLContextProviderImpl messageContextProvider;
 
-	private final String signingKey = "api-saml-cert";
-	private final String keyStorePass = "changeit";
-	private final String keyAlias = "pipe-cert";
-
 	static {
 		Collection<SAMLBinding> bindings = new ArrayList<SAMLBinding>();
 		bindings.add(httpRedirectDeflateBinding());
@@ -102,7 +98,7 @@ public class SAMLContext {
 		metadataManager.setHostedSPName(configuration.getSpEntityId());
 		metadataManager.refreshMetadata();
 
-		messageContextProvider = new SAMLContexProviderCustomSingKey(signingKey);
+		messageContextProvider = new SAMLContexProviderCustomSingKey(configuration.getSignKeySetting());
 		messageContextProvider.setMetadata(metadataManager);
 		messageContextProvider.setKeyManager(keyManager);
 		messageContextProvider.afterPropertiesSet();
@@ -152,7 +148,6 @@ public class SAMLContext {
 		String baseURL = configuration.getBaseUrl();
 
 		generator.setEntityBaseURL(baseURL);
-		generator.setEntityId("http://localhost:1990/confluence/");
 
 		// Use default entityID if not set
 		if (generator.getEntityId() == null) {
@@ -170,12 +165,11 @@ public class SAMLContext {
 
 	public KeyManager generateKeyManager(SAMLConfig samlConfig) {
 		Resource storeFile = samlConfig.getKeystoreFile();
-		String storePass = keyStorePass;
+		String keyStorePassword = samlConfig.getKeyStorePasswordSetting();
 		Map<String, String> passwords = new HashMap<String, String>();
-		passwords.put(keyAlias, keyStorePass);
-		passwords.put(signingKey, keyStorePass);
-		String defaultKey = keyAlias;
-		spKeyManager = new JKSKeyManager(storeFile, storePass, passwords, defaultKey);
+		String signKey = samlConfig.getSignKeySetting();
+		passwords.put(signKey, keyStorePassword);
+		spKeyManager = new JKSKeyManager(storeFile, keyStorePassword, passwords, signKey);
 		return spKeyManager;
 	}
 
