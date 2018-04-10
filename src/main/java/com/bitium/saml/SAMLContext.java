@@ -78,8 +78,6 @@ public class SAMLContext {
 
 		configuration.setDefaultBaseUrl(getDefaultBaseURL(request));
 
-		idpKeyManager = new IdpKeyManager(configuration.getIdpEntityId(), configuration.getX509Certificate());
-
 		spMetadataGenerator = metadataGenerator(configuration);
 
 		EntityDescriptor entityDescriptor = spMetadataGenerator.generateMetadata();
