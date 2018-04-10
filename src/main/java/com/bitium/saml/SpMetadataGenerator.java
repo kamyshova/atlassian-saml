@@ -4,8 +4,6 @@ import com.bitium.saml.config.SAMLConfig;
 import org.opensaml.saml2.metadata.provider.FilesystemMetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProviderException;
-import org.opensaml.xml.Configuration;
-import org.opensaml.xml.parse.StaticBasicParserPool;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.FileSystemResourceLoader;
 import org.springframework.core.io.Resource;
@@ -32,10 +30,10 @@ public class SpMetadataGenerator {
         MetadataGenerator generator = new MetadataGenerator();
 
         // Defaults
-        String alias = configuration.getAlias();
         String baseURL = configuration.getBaseUrl();
 
         generator.setEntityBaseURL(baseURL);
+        generator.setEntityId("http://localhost:1990/confluence/");
 
         // Use default entityID if not set
         if (generator.getEntityId() == null) {
@@ -45,11 +43,7 @@ public class SpMetadataGenerator {
         generator.setBindingsSSO(Collections.singletonList("post"));
         generator.setKeyManager(keyManager());
 
-        Configuration.getGlobalSecurityConfiguration().getKeyInfoGeneratorManager().getManager("MetadataKeyInfoGenerator");
-
-
         ExtendedMetadata extendedMetadata = extendedMetadata();
-        extendedMetadata.setAlias(alias);
         generator.setExtendedMetadata(extendedMetadata);
 
         return extendedMetadataDelegate();
@@ -57,7 +51,7 @@ public class SpMetadataGenerator {
 
     public KeyManager keyManager() {
         DefaultResourceLoader loader = new FileSystemResourceLoader();
-        Resource storeFile = loader.getResource("file://$HOME/api/sso/devKeystore.jks");
+        Resource storeFile = loader.getResource("file:/home/yulia_kamyshova/api/sso/devKeystore.jks");
         String storePass = keyStorePass;
         Map<String, String> passwords = new HashMap<String, String>();
         passwords.put(keyAlias, keyStorePass);
@@ -76,16 +70,12 @@ public class SpMetadataGenerator {
     public ExtendedMetadataDelegate extendedMetadataDelegate() {
         try {
             FilesystemMetadataProvider metadataProvider =
-                    new FilesystemMetadataProvider(new File("$HOME/api/sso/FederationMetadata.xml"));
+                    new FilesystemMetadataProvider(new File("/home/yulia_kamyshova/api/sso/FederationMetadata.xml"));
+            metadataProvider.setParserPool(org.opensaml.Configuration.getParserPool());
             metadataProvider.initialize();
-            metadataProvider.setParserPool(parserPool());
             return new ExtendedMetadataDelegate(metadataProvider, extendedMetadata());
         } catch (MetadataProviderException e) {
             throw new IllegalArgumentException(e);
         }
-    }
-
-    public StaticBasicParserPool parserPool() {
-        return new StaticBasicParserPool();
     }
 }
