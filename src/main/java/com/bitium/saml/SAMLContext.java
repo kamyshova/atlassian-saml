@@ -7,6 +7,7 @@ import org.opensaml.Configuration;
 import org.opensaml.saml2.metadata.AssertionConsumerService;
 import org.opensaml.saml2.metadata.EntityDescriptor;
 import org.opensaml.saml2.metadata.SPSSODescriptor;
+import org.opensaml.saml2.metadata.provider.FilesystemMetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProviderException;
 import org.opensaml.util.resource.ResourceException;
@@ -16,6 +17,8 @@ import org.opensaml.xml.security.keyinfo.NamedKeyInfoGeneratorManager;
 import org.opensaml.xml.security.x509.X509KeyInfoGeneratorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.FileSystemResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.security.saml.SAMLConstants;
 import org.springframework.security.saml.context.SAMLContextProviderImpl;
@@ -31,6 +34,7 @@ import org.springframework.security.saml.websso.ArtifactResolutionProfileImpl;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.security.cert.CertificateException;
 import java.util.*;
@@ -88,7 +92,7 @@ public class SAMLContext {
 
 		MetadataProvider spMetadataProvider = new ExtendedMetadataDelegate(metadataMemoryProvider, extendedMetadata);
 
-		MetadataProvider idpMetadataProvider = new ExtendedMetadataDelegate(configuration.getMetadataProvider(), extendedMetadata());
+		MetadataProvider idpMetadataProvider = extendedMetadataDelegate(configuration);
 		
 		metadataManager = new MetadataManager(Arrays.asList(spMetadataProvider, idpMetadataProvider));
 		KeyManager keyManager = generateKeyManager(configuration);
@@ -162,7 +166,8 @@ public class SAMLContext {
 	}
 
 	public KeyManager generateKeyManager(SAMLConfig samlConfig) {
-		Resource storeFile = samlConfig.getKeystoreFile();
+		DefaultResourceLoader loader = new FileSystemResourceLoader();
+		Resource storeFile = loader.getResource(samlConfig.getKeystore());
 		String keyStorePassword = samlConfig.getKeyStorePasswordSetting();
 		Map<String, String> passwords = new HashMap<String, String>();
 		String signKey = samlConfig.getSignKeySetting();
@@ -176,6 +181,18 @@ public class SAMLContext {
 		extendedMetadata.setIdpDiscoveryEnabled(true);
 		extendedMetadata.setSignMetadata(true);
 		return extendedMetadata;
+	}
+
+	public ExtendedMetadataDelegate extendedMetadataDelegate(SAMLConfig samlConfig) {
+		try {
+			FilesystemMetadataProvider metadataProvider =
+					new FilesystemMetadataProvider(new File(samlConfig.getMetadata()));
+			metadataProvider.setParserPool(org.opensaml.Configuration.getParserPool());
+			metadataProvider.initialize();
+			return new ExtendedMetadataDelegate(metadataProvider, extendedMetadata());
+		} catch (MetadataProviderException e) {
+			throw new IllegalArgumentException(e);
+		}
 	}
 
 	protected void setMetadataKeyInfoGenerator() {
@@ -209,5 +226,4 @@ public class SAMLContext {
 	public static HTTPPostBinding httpPostBinding() {
 		return new HTTPPostBinding(Configuration.getParserPool(), velocityEngine());
 	}
-
 }

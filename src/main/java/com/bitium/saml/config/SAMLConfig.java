@@ -9,19 +9,13 @@ import org.opensaml.saml2.metadata.Endpoint;
 import org.opensaml.saml2.metadata.EntityDescriptor;
 import org.opensaml.saml2.metadata.RoleDescriptor;
 import org.opensaml.saml2.metadata.SingleLogoutService;
-import org.opensaml.saml2.metadata.provider.FilesystemMetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProviderException;
-import org.opensaml.xml.Configuration;
 import org.opensaml.xml.ConfigurationException;
 import org.opensaml.xml.XMLObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.DefaultResourceLoader;
-import org.springframework.core.io.FileSystemResourceLoader;
-import org.springframework.core.io.Resource;
 
-import java.io.File;
 import java.util.List;
 
 public class SAMLConfig {
@@ -29,7 +23,6 @@ public class SAMLConfig {
 
     private PluginSettings pluginSettings;
     private MetadataProvider metadataProvider;
-    private Resource keyStore;
 
     private String defaultBaseURL;
 
@@ -47,6 +40,8 @@ public class SAMLConfig {
     public static final String KEY_STORE_PASSWORD_SETTING = "saml2.keystorePassword";
     public static final String SIGN_KEY_SETTING = "saml2.signKey";
     public static final String REQUEST_BINDING_SETTING = "saml2.requestBinding";
+    public static final String METADATA_FILE_PATH_SETTING = "saml2.metadata";
+    public static final String KEYSTORE_FILE_PATH_SETTING = "saml2.keystore";
 
     static {
         try {
@@ -128,26 +123,12 @@ public class SAMLConfig {
         pluginSettings.put(REQUEST_BINDING_SETTING, requestBindingSetting);
     }
 
-    public void setMetadataFile(final File metadataFile) {
-        if (metadataFile == null) {
-            throw new IllegalArgumentException("Metadata file should not be null");
-        }
-        try {
-            final FilesystemMetadataProvider metadataProvider = new FilesystemMetadataProvider(metadataFile);
-            metadataProvider.setParserPool(Configuration.getParserPool());
-            metadataProvider.initialize();
-            this.metadataProvider = metadataProvider;
-        } catch (MetadataProviderException e) {
-            throw new RuntimeException("Metadata provider wasn't created for the given metadata file", e);
-        }
+    public void setMetadataFile(final String metadataFilePath) {
+        pluginSettings.put(METADATA_FILE_PATH_SETTING, metadataFilePath);
     }
 
-    public void setKeystoreFile(final File keystoreFile) {
-        if (keystoreFile == null) {
-            throw new IllegalArgumentException("Keystore file should not be null");
-        }
-        DefaultResourceLoader loader = new FileSystemResourceLoader();
-        keyStore = loader.getResource(keystoreFile.getAbsolutePath());
+    public void setKeystoreFile(final String keystoreFilePath) {
+        pluginSettings.put(KEYSTORE_FILE_PATH_SETTING, keystoreFilePath);
     }
 
 	public long getMaxAuthenticationAge() {
@@ -232,8 +213,6 @@ public class SAMLConfig {
         }
     }
 
-//    private String retrieveX509certificate(final )
-
     @Deprecated
     public String getIdpEntityId() {
         return StringUtils.defaultString((String)pluginSettings.get(ENTITY_ID_SETTING));
@@ -280,7 +259,11 @@ public class SAMLConfig {
         return StringUtils.defaultString((String)pluginSettings.get(REQUEST_BINDING_SETTING));
     }
 
-    public Resource getKeystoreFile() {
-        return keyStore;
+    public String getMetadata() {
+        return StringUtils.defaultString((String)pluginSettings.get(METADATA_FILE_PATH_SETTING));
+    }
+
+    public String getKeystore() {
+        return StringUtils.defaultString((String)pluginSettings.get(KEYSTORE_FILE_PATH_SETTING));
     }
 }
