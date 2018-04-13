@@ -24,8 +24,6 @@ public class SAMLConfig {
     private PluginSettings pluginSettings;
     private MetadataProvider metadataProvider;
 
-    private String defaultBaseURL;
-
     public static final String ENTITY_ID_SETTING = "saml2.entityId";
     public static final String LOGIN_URL_SETTING = "saml2.loginUrl";
     public static final String LOGOUT_URL_SETTING = "saml2.logoutUrl";
@@ -42,6 +40,7 @@ public class SAMLConfig {
     public static final String REQUEST_BINDING_SETTING = "saml2.requestBinding";
     public static final String METADATA_FILE_PATH_SETTING = "saml2.metadata";
     public static final String KEYSTORE_FILE_PATH_SETTING = "saml2.keystore";
+    public static final String BASE_URL_SETTING = "saml2.baseUrl";
 
     static {
         try {
@@ -130,6 +129,11 @@ public class SAMLConfig {
     public void setKeystoreFile(final String keystoreFilePath) {
         pluginSettings.put(KEYSTORE_FILE_PATH_SETTING, keystoreFilePath);
     }
+
+    public void setBaseUrl(final String baseURL) {
+        pluginSettings.put(BASE_URL_SETTING, baseURL);
+    }
+
 
 	public long getMaxAuthenticationAge() {
 		String value=StringUtils.defaultString((String)pluginSettings.get(MAX_AUTHENTICATION_AGE));
@@ -231,16 +235,12 @@ public class SAMLConfig {
         return StringUtils.defaultString((String)pluginSettings.get(REDIRECT_URL_SETTING));
     }
 
-    public void setDefaultBaseUrl(String defaultBaseURL) {
-        this.defaultBaseURL = defaultBaseURL;
-    }
-
     public String getAlias() {
         return "confluenceSAML";
     }
 
     public String getBaseUrl() {
-        return StringUtils.defaultString(defaultBaseURL);
+        return StringUtils.defaultString((String)pluginSettings.get(BASE_URL_SETTING));
     }
 
     public String getSpEntityId() {

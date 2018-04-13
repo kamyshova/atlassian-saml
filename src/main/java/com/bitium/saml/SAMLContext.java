@@ -80,7 +80,7 @@ public class SAMLContext {
 	public SAMLContext(HttpServletRequest request, SAMLConfig configuration) throws ConfigurationException, CertificateException, UnsupportedEncodingException, MetadataProviderException, ServletException, ResourceException {
 		setMetadataKeyInfoGenerator();
 
-		configuration.setDefaultBaseUrl(getDefaultBaseURL(request));
+		configuration.setBaseUrl(getDefaultBaseURL(request));
 
 		spMetadataGenerator = metadataGenerator(configuration);
 
@@ -110,7 +110,7 @@ public class SAMLContext {
 		samlMessageContext = messageContextProvider.getLocalAndPeerEntity(request, response);
 		
 		SPSSODescriptor spDescriptor = (SPSSODescriptor) samlMessageContext.getLocalEntityRoleMetadata();
-		
+
 		String responseURL = request.getRequestURL().toString();
 		spDescriptor.getDefaultAssertionConsumerService().setResponseLocation(responseURL);
 		for (AssertionConsumerService service : spDescriptor.getAssertionConsumerServices()) {
