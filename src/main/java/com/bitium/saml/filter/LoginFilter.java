@@ -24,9 +24,9 @@ public class LoginFilter implements Filter {
         HttpServletRequest req = (HttpServletRequest)request;
         HttpServletResponse res = (HttpServletResponse)response;
 
-        if (idpRequired == true) {
+        if (idpRequired) {
             try {
-                res.sendRedirect(loginUriProvider.getLoginUri((new URI(req.getRequestURI().toString()))).toString() + "&samlerror=general");
+                res.sendRedirect(loginUriProvider.getLoginUri((new URI(req.getRequestURI()))).toString() + "&samlerror=general");
             } catch (URISyntaxException e) {
             }
         } else {

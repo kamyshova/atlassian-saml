@@ -61,8 +61,7 @@ public abstract class SsoLoginServlet extends HttpServlet {
             WebSSOProfile webSSOprofile = new WebSSOProfileImpl(context.getSamlProcessor(), context.getMetadataManager());
             webSSOprofile.sendAuthenticationRequest(messageContext, options);
         } catch (Exception e) {
-            e.printStackTrace();
-//            redirectToLoginWithSAMLError(response, e, "general");
+            redirectToLoginWithSAMLError(response, e, "general");
         }
     }
 
@@ -103,7 +102,6 @@ public abstract class SsoLoginServlet extends HttpServlet {
             context.getSamlProcessor().retrieveMessage(messageContext);
 
             messageContext.setLocalEntityEndpoint(SAMLUtil.getEndpoint(messageContext.getLocalEntityRoleMetadata().getEndpoints(), messageContext.getInboundSAMLBinding(), new HttpServletRequestAdapter(request)));
-            messageContext.getPeerEntityMetadata().setEntityID(saml2Config.getIdpEntityId());
 
             WebSSOProfileConsumerImpl consumer = new WebSSOProfileConsumerImpl(context.getSamlProcessor(), context.getMetadataManager());
             consumer.setMaxAuthenticationAge(saml2Config.getMaxAuthenticationAge());
@@ -113,7 +111,6 @@ public abstract class SsoLoginServlet extends HttpServlet {
 
             String uidAttribute = saml2Config.getUidAttribute();
             String userName = uidAttribute.equals("NameID") ? credential.getNameID().getValue() : credential.getAttributeAsString(uidAttribute);
-
             authenticateUserAndLogin(request, response, userName);
         } catch (Exception e) {
             redirectToLoginWithSAMLError(response, e, "plugin_exception");
@@ -142,7 +139,6 @@ public abstract class SsoLoginServlet extends HttpServlet {
                 redirectUrl = getDashboardUrl();
             }
         }
-        redirectUrl = filterRedirectUrl(redirectUrl);
         response.sendRedirect(redirectUrl);
     }
     
@@ -162,6 +158,7 @@ public abstract class SsoLoginServlet extends HttpServlet {
     protected void redirectToLoginWithSAMLError(HttpServletResponse response, Exception exception, String string) throws ServletException {
         try {
             if (exception != null) {
+                exception.printStackTrace();
                 log.error("saml plugin error + " + exception.getMessage());
             }
             response.sendRedirect(getLoginFormUrl() + "?samlerror=" + string);

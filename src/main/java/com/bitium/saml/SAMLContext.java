@@ -2,6 +2,7 @@ package com.bitium.saml;
 
 import com.bitium.saml.config.SAMLConfig;
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.lang.StringUtils;
 import org.apache.velocity.app.VelocityEngine;
 import org.opensaml.Configuration;
 import org.opensaml.saml2.metadata.AssertionConsumerService;
@@ -10,8 +11,6 @@ import org.opensaml.saml2.metadata.SPSSODescriptor;
 import org.opensaml.saml2.metadata.provider.FilesystemMetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProviderException;
-import org.opensaml.util.resource.ResourceException;
-import org.opensaml.xml.ConfigurationException;
 import org.opensaml.xml.parse.ParserPool;
 import org.opensaml.xml.security.keyinfo.NamedKeyInfoGeneratorManager;
 import org.opensaml.xml.security.x509.X509KeyInfoGeneratorFactory;
@@ -35,8 +34,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
-import java.io.UnsupportedEncodingException;
-import java.security.cert.CertificateException;
 import java.util.*;
 
 public class SAMLContext {
@@ -44,7 +41,6 @@ public class SAMLContext {
 	private static final SAMLProcessor samlProcessor;
 	
 	private MetadataManager metadataManager;
-	private KeyManager idpKeyManager;
 	private KeyManager spKeyManager;
 	private SAMLMessageContext samlMessageContext;
 	private MetadataGenerator spMetadataGenerator;
@@ -77,10 +73,11 @@ public class SAMLContext {
 		return new HTTPArtifactBinding(parserPool, velocityEngine, artifactResolutionProfile());
 	}
 
-	public SAMLContext(HttpServletRequest request, SAMLConfig configuration) throws ConfigurationException, CertificateException, UnsupportedEncodingException, MetadataProviderException, ServletException, ResourceException {
+	public SAMLContext(HttpServletRequest request, SAMLConfig configuration) throws  MetadataProviderException, ServletException {
 		setMetadataKeyInfoGenerator();
 
-		configuration.setBaseUrl(getDefaultBaseURL(request));
+		configuration.setBaseUrl(StringUtils.isNotBlank(
+		        configuration.getBaseUrl()) ? configuration.getBaseUrl() : getDefaultBaseURL(request));
 
 		spMetadataGenerator = metadataGenerator(configuration);
 
@@ -129,10 +126,6 @@ public class SAMLContext {
 
 	public MetadataManager getMetadataManager() {
 		return metadataManager;
-	}
-
-	public KeyManager getIdpKeyManager() {
-		return idpKeyManager;
 	}
 
 	private String getDefaultBaseURL(HttpServletRequest request) {
