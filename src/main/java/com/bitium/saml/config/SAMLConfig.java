@@ -2,6 +2,8 @@ package com.bitium.saml.config;
 
 import com.atlassian.sal.api.pluginsettings.PluginSettings;
 import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
+import com.bitium.saml.SAMLContext;
+import com.bitium.saml.SAMLContextBuilder;
 import org.apache.commons.lang.StringUtils;
 import org.opensaml.DefaultBootstrap;
 import org.opensaml.xml.ConfigurationException;
@@ -12,6 +14,8 @@ public class SAMLConfig {
     private static final Logger logger = LoggerFactory.getLogger(SAMLConfig.class);
 
     private PluginSettings pluginSettings;
+
+    private volatile SAMLContext samlContext;
 
     public static final String LOGIN_URL_SETTING = "saml2.loginUrl";
     public static final String LOGOUT_URL_SETTING = "saml2.logoutUrl";
@@ -91,7 +95,7 @@ public class SAMLConfig {
         pluginSettings.put(REQUEST_BINDING_SETTING, requestBindingSetting);
     }
 
-    public void setMetadataFile(final String metadataFilePath) {
+    public void setIdpMetadataFile(final String metadataFilePath) {
         pluginSettings.put(METADATA_FILE_PATH_SETTING, metadataFilePath);
     }
 
@@ -179,11 +183,45 @@ public class SAMLConfig {
         return StringUtils.defaultString((String) pluginSettings.get(REQUEST_BINDING_SETTING));
     }
 
-    public String getMetadata() {
+    public String getIdpMetadataFile() {
         return StringUtils.defaultString((String) pluginSettings.get(METADATA_FILE_PATH_SETTING));
     }
 
     public String getKeystore() {
         return StringUtils.defaultString((String) pluginSettings.get(KEYSTORE_FILE_PATH_SETTING));
+    }
+
+    public SAMLContext getSamlContext() {
+        if (samlContext != null) {
+            return samlContext;
+        }
+        synchronized (this) {
+            if (samlContext != null) {
+                return samlContext;
+            }
+            initializeSamlContext(false);
+            return samlContext;
+        }
+    }
+
+    public synchronized void initializeSamlContext(boolean defaultInit) {
+        try {
+            if (StringUtils.isBlank(getSignKeySetting()) ||
+                    StringUtils.isBlank(getKeyStorePasswordSetting()) ||
+                    StringUtils.isBlank(getKeystore()) ||
+                    StringUtils.isBlank(getIdpMetadataFile()) ||
+                    StringUtils.isBlank(getRequestBindingSetting())) {
+                if (defaultInit) {
+                    return;
+                } else {
+                    throw new IllegalArgumentException("Missing required values for " +
+                            "SAML Security context initialization.");
+                }
+            }
+            this.samlContext = new SAMLContextBuilder(this).buildContext();
+        } catch (Exception e) {
+            logger.error("Failed to initialize SAML Security context.");
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
     }
 }

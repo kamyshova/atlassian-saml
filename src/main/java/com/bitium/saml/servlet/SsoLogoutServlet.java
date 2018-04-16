@@ -1,12 +1,14 @@
 package com.bitium.saml.servlet;
 
 import com.bitium.saml.SAMLContext;
+import com.bitium.saml.SAMLProcessorProvider;
 import com.bitium.saml.config.SAMLConfig;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.security.saml.SAMLCredential;
 import org.springframework.security.saml.context.SAMLMessageContext;
-import org.springframework.security.saml.websso.SingleLogoutProfileImpl;
+import org.springframework.security.saml.websso.SingleLogoutProfile;
+import org.springframework.util.Assert;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -31,15 +33,13 @@ public class SsoLogoutServlet extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            SAMLContext context = new SAMLContext(request, saml2Config);
-            SAMLMessageContext messageContext = context.createSamlMessageContext(request, response);
+            SAMLContext context = getSamlContext();
+            SAMLMessageContext messageContext = context.getLocalEntity(request, response);
 
             SAMLCredential credential = (SAMLCredential)request.getSession().getAttribute("SAMLCredential");
 
             // Send request
-            SingleLogoutProfileImpl profile = new SingleLogoutProfileImpl();
-            profile.setMetadata(context.getMetadataManager());
-            profile.setProcessor(context.getSamlProcessor());
+            SingleLogoutProfile profile = context.getLogoutProfile(SAMLProcessorProvider.getProcessor());
             profile.sendLogoutRequest(messageContext, credential);
         } catch (Exception e) {
             log.error("saml plugin error + " + e.getMessage());
@@ -49,5 +49,11 @@ public class SsoLogoutServlet extends HttpServlet {
 
     public void setSaml2Config(SAMLConfig saml2Config) {
         this.saml2Config = saml2Config;
+    }
+
+    private SAMLContext getSamlContext() {
+        SAMLContext context = saml2Config.getSamlContext();
+        Assert.notNull(context, "SAML Security context is not initialized");
+        return context;
     }
 }

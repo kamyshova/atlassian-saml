@@ -1,222 +1,92 @@
 package com.bitium.saml;
 
-import com.bitium.saml.config.SAMLConfig;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.lang.StringUtils;
-import org.apache.velocity.app.VelocityEngine;
-import org.opensaml.Configuration;
 import org.opensaml.saml2.metadata.AssertionConsumerService;
-import org.opensaml.saml2.metadata.EntityDescriptor;
 import org.opensaml.saml2.metadata.SPSSODescriptor;
-import org.opensaml.saml2.metadata.provider.FilesystemMetadataProvider;
-import org.opensaml.saml2.metadata.provider.MetadataProvider;
 import org.opensaml.saml2.metadata.provider.MetadataProviderException;
-import org.opensaml.xml.parse.ParserPool;
-import org.opensaml.xml.security.keyinfo.NamedKeyInfoGeneratorManager;
-import org.opensaml.xml.security.x509.X509KeyInfoGeneratorFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.core.io.DefaultResourceLoader;
-import org.springframework.core.io.FileSystemResourceLoader;
-import org.springframework.core.io.Resource;
 import org.springframework.security.saml.SAMLConstants;
-import org.springframework.security.saml.context.SAMLContextProviderImpl;
+import org.springframework.security.saml.context.SAMLContextProvider;
 import org.springframework.security.saml.context.SAMLMessageContext;
-import org.springframework.security.saml.key.JKSKeyManager;
-import org.springframework.security.saml.key.KeyManager;
-import org.springframework.security.saml.metadata.*;
-import org.springframework.security.saml.processor.*;
-import org.springframework.security.saml.util.VelocityFactory;
-import org.springframework.security.saml.websso.ArtifactResolutionProfile;
-import org.springframework.security.saml.websso.ArtifactResolutionProfileImpl;
+import org.springframework.security.saml.metadata.MetadataManager;
+import org.springframework.security.saml.processor.SAMLProcessor;
+import org.springframework.security.saml.websso.SingleLogoutProfile;
+import org.springframework.security.saml.websso.SingleLogoutProfileImpl;
+import org.springframework.security.saml.websso.WebSSOProfile;
+import org.springframework.security.saml.websso.WebSSOProfileConsumer;
+import org.springframework.security.saml.websso.WebSSOProfileConsumerImpl;
+import org.springframework.security.saml.websso.WebSSOProfileImpl;
+import org.springframework.security.saml.websso.WebSSOProfileOptions;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.util.*;
 
 public class SAMLContext {
-	private static final Logger logger = LoggerFactory.getLogger(SAMLContext.class);
-	private static final SAMLProcessor samlProcessor;
-	
+
 	private MetadataManager metadataManager;
-	private KeyManager spKeyManager;
-	private SAMLMessageContext samlMessageContext;
-	private MetadataGenerator spMetadataGenerator;
-	private SAMLContextProviderImpl messageContextProvider;
+	private SAMLContextProvider contextProvider;
+	private String requestBinding;
+	private long maxAuthenticationAge;
 
-	static {
-		Collection<SAMLBinding> bindings = new ArrayList<SAMLBinding>();
-		bindings.add(httpRedirectDeflateBinding());
-		bindings.add(httpPostBinding());
-		bindings.add(artifactBinding(Configuration.getParserPool(), velocityEngine()));
-		bindings.add(httpSOAP11Binding());
-		bindings.add(httpPAOS11Binding());
-
-        samlProcessor = new SAMLProcessorImpl(bindings);
-	}
-
-	public static HTTPRedirectDeflateBinding httpRedirectDeflateBinding() {
-		return new HTTPRedirectDeflateBinding(Configuration.getParserPool());
-	}
-
-	public static HTTPSOAP11Binding httpSOAP11Binding() {
-		return new HTTPSOAP11Binding(Configuration.getParserPool());
-	}
-
-	public static HTTPPAOS11Binding httpPAOS11Binding() {
-		return new HTTPPAOS11Binding(Configuration.getParserPool());
-	}
-
-	public static HTTPArtifactBinding artifactBinding(ParserPool parserPool, VelocityEngine velocityEngine) {
-		return new HTTPArtifactBinding(parserPool, velocityEngine, artifactResolutionProfile());
-	}
-
-	public SAMLContext(HttpServletRequest request, SAMLConfig configuration) throws  MetadataProviderException, ServletException {
-		setMetadataKeyInfoGenerator();
-
-		configuration.setBaseUrl(StringUtils.isNotBlank(
-		        configuration.getBaseUrl()) ? configuration.getBaseUrl() : getDefaultBaseURL(request));
-
-		spMetadataGenerator = metadataGenerator(configuration);
-
-		EntityDescriptor entityDescriptor = spMetadataGenerator.generateMetadata();
-		ExtendedMetadata extendedMetadata = spMetadataGenerator.generateExtendedMetadata();
-
-		MetadataMemoryProvider metadataMemoryProvider = new MetadataMemoryProvider(entityDescriptor);
-		metadataMemoryProvider.initialize();
-
-		MetadataProvider spMetadataProvider = new ExtendedMetadataDelegate(metadataMemoryProvider, extendedMetadata);
-
-		MetadataProvider idpMetadataProvider = extendedMetadataDelegate(configuration);
-		
-		metadataManager = new MetadataManager(Arrays.asList(spMetadataProvider, idpMetadataProvider));
-		KeyManager keyManager = generateKeyManager(configuration);
-		metadataManager.setKeyManager(keyManager);
-		metadataManager.setHostedSPName(configuration.getSpEntityId());
-		metadataManager.refreshMetadata();
-
-		messageContextProvider = new SAMLContexProviderCustomSingKey(configuration.getSignKeySetting());
-		messageContextProvider.setMetadata(metadataManager);
-		messageContextProvider.setKeyManager(keyManager);
-		messageContextProvider.afterPropertiesSet();
-	}
-	
-	public SAMLMessageContext createSamlMessageContext(HttpServletRequest request, HttpServletResponse response) throws ServletException, MetadataProviderException {
-		samlMessageContext = messageContextProvider.getLocalAndPeerEntity(request, response);
-		
-		SPSSODescriptor spDescriptor = (SPSSODescriptor) samlMessageContext.getLocalEntityRoleMetadata();
-
-		String responseURL = request.getRequestURL().toString();
-		spDescriptor.getDefaultAssertionConsumerService().setResponseLocation(responseURL);
-		for (AssertionConsumerService service : spDescriptor.getAssertionConsumerServices()) {
-			service.setResponseLocation(responseURL);
-		}
-		
-		spDescriptor.setAuthnRequestsSigned(true);
-		samlMessageContext.setCommunicationProfileId(SAMLConstants.SAML2_WEBSSO_PROFILE_URI);
-		
-		return samlMessageContext;
-	}
-
-	public SAMLProcessor getSamlProcessor() {
-		return samlProcessor;
-	}
-
-	public MetadataManager getMetadataManager() {
-		return metadataManager;
-	}
-
-	private String getDefaultBaseURL(HttpServletRequest request) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(request.getScheme()).append("://").append(request.getServerName()).append(":").append(request.getServerPort());
-        sb.append(request.getContextPath());
-        return sb.toString();
+    public SAMLContext(MetadataManager metadataManager, SAMLContextProvider contextProvider,
+                       String requestBinding, long maxAuthenticationAge) {
+        this.metadataManager = metadataManager;
+        this.contextProvider = contextProvider;
+        this.requestBinding = requestBinding;
+        this.maxAuthenticationAge = maxAuthenticationAge;
     }
-	
-	private MetadataGenerator metadataGenerator(SAMLConfig configuration) {
 
-		MetadataGenerator generator = new MetadataGenerator();
+    public SAMLMessageContext getLocalEntity(HttpServletRequest request, HttpServletResponse response)
+            throws MetadataProviderException {
+        SAMLMessageContext messageContext = contextProvider.getLocalEntity(request, response);
+        postProcessMessage(request, messageContext);
+        return messageContext;
+    }
 
-		// Defaults
-		String baseURL = configuration.getBaseUrl();
+    public SAMLMessageContext getLocalAndPeerEntity(HttpServletRequest request, HttpServletResponse response)
+            throws MetadataProviderException {
+        SAMLMessageContext messageContext = contextProvider.getLocalAndPeerEntity(request, response);
+        postProcessMessage(request, messageContext);
+        return messageContext;
+    }
 
-		generator.setEntityBaseURL(baseURL);
+    public WebSSOProfileConsumer getWebSSOProfileConsumer(SAMLProcessor samlProcessor) {
+        WebSSOProfileConsumerImpl webSSOProfileConsumer =
+                new WebSSOProfileConsumerImpl(samlProcessor, metadataManager);
+        webSSOProfileConsumer.setMaxAuthenticationAge(maxAuthenticationAge);
+        return webSSOProfileConsumer;
+    }
 
-		// Use default entityID if not set
-		if (generator.getEntityId() == null) {
-			generator.setEntityId(configuration.getSpEntityId());
-		}
+    public WebSSOProfileOptions getSSOProfileOptions() {
+        WebSSOProfileOptions options = new WebSSOProfileOptions();
+        options.setBinding(requestBinding);
+        options.setIncludeScoping(false);
+        return options;
+    }
 
-		generator.setBindingsSSO(Collections.singletonList("post"));
-		generator.setKeyManager(generateKeyManager(configuration));
+    public WebSSOProfile getWebSSOProfile(SAMLProcessor samlProcessor) {
+        return new WebSSOProfileImpl(samlProcessor, metadataManager);
+    }
 
-		ExtendedMetadata extendedMetadata = extendedMetadata();
-		generator.setExtendedMetadata(extendedMetadata);
+    public SAMLContextProvider getSamlContextProvider() {
+	    return this.contextProvider;
+    }
 
-		return generator;
-	}
+    public SingleLogoutProfile getLogoutProfile(SAMLProcessor samlProcessor) {
+        SingleLogoutProfileImpl profile = new SingleLogoutProfileImpl();
+        profile.setMetadata(metadataManager);
+        profile.setProcessor(samlProcessor);
+        return profile;
+    }
 
-	public KeyManager generateKeyManager(SAMLConfig samlConfig) {
-		DefaultResourceLoader loader = new FileSystemResourceLoader();
-		Resource storeFile = loader.getResource(samlConfig.getKeystore());
-		String keyStorePassword = samlConfig.getKeyStorePasswordSetting();
-		Map<String, String> passwords = new HashMap<String, String>();
-		String signKey = samlConfig.getSignKeySetting();
-		passwords.put(signKey, keyStorePassword);
-		spKeyManager = new JKSKeyManager(storeFile, keyStorePassword, passwords, signKey);
-		return spKeyManager;
-	}
+    private void postProcessMessage(HttpServletRequest request, SAMLMessageContext messageContext) {
+        SPSSODescriptor spDescriptor = (SPSSODescriptor) messageContext.getLocalEntityRoleMetadata();
 
-	public ExtendedMetadata extendedMetadata() {
-		ExtendedMetadata extendedMetadata = new ExtendedMetadata();
-		extendedMetadata.setIdpDiscoveryEnabled(true);
-		extendedMetadata.setSignMetadata(true);
-		return extendedMetadata;
-	}
+        String responseURL = request.getRequestURL().toString();
+        spDescriptor.getDefaultAssertionConsumerService().setResponseLocation(responseURL);
+        for (AssertionConsumerService service : spDescriptor.getAssertionConsumerServices()) {
+            service.setResponseLocation(responseURL);
+        }
 
-	public ExtendedMetadataDelegate extendedMetadataDelegate(SAMLConfig samlConfig) {
-		try {
-			FilesystemMetadataProvider metadataProvider =
-					new FilesystemMetadataProvider(new File(samlConfig.getMetadata()));
-			metadataProvider.setParserPool(org.opensaml.Configuration.getParserPool());
-			metadataProvider.initialize();
-			return new ExtendedMetadataDelegate(metadataProvider, extendedMetadata());
-		} catch (MetadataProviderException e) {
-			throw new IllegalArgumentException(e);
-		}
-	}
-
-	protected void setMetadataKeyInfoGenerator() {
-		NamedKeyInfoGeneratorManager manager = Configuration.getGlobalSecurityConfiguration().getKeyInfoGeneratorManager();
-		X509KeyInfoGeneratorFactory generator = new X509KeyInfoGeneratorFactory();
-		generator.setEmitEntityCertificate(true);
-		generator.setEmitEntityCertificateChain(true);
-		manager.registerFactory(SAMLConstants.SAML_METADATA_KEY_INFO_GENERATOR, generator);
-	}
-
-
-	private static ArtifactResolutionProfile artifactResolutionProfile() {
-		final ArtifactResolutionProfileImpl artifactResolutionProfile =
-				new ArtifactResolutionProfileImpl(httpClient());
-		artifactResolutionProfile.setProcessor(new SAMLProcessorImpl(soapBinding()));
-		return artifactResolutionProfile;
-	}
-
-	public static HttpClient httpClient() {
-		return new HttpClient();
-	}
-
-	public static HTTPSOAP11Binding soapBinding() {
-		return new HTTPSOAP11Binding(Configuration.getParserPool());
-	}
-
-	public static VelocityEngine velocityEngine() {
-		return VelocityFactory.getEngine();
-	}
-
-	public static HTTPPostBinding httpPostBinding() {
-		return new HTTPPostBinding(Configuration.getParserPool(), velocityEngine());
-	}
+        spDescriptor.setAuthnRequestsSigned(true);
+        messageContext.setCommunicationProfileId(SAMLConstants.SAML2_WEBSSO_PROFILE_URI);
+    }
 }

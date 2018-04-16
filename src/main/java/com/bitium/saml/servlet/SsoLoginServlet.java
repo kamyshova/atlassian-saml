@@ -2,17 +2,18 @@ package com.bitium.saml.servlet;
 
 import com.atlassian.seraph.auth.DefaultAuthenticator;
 import com.bitium.saml.SAMLContext;
+import com.bitium.saml.SAMLProcessorProvider;
 import com.bitium.saml.config.SAMLConfig;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.opensaml.ws.transport.http.HttpServletRequestAdapter;
 import org.springframework.security.saml.SAMLCredential;
 import org.springframework.security.saml.context.SAMLMessageContext;
+import org.springframework.security.saml.processor.SAMLProcessor;
 import org.springframework.security.saml.util.SAMLUtil;
-import org.springframework.security.saml.websso.WebSSOProfile;
-import org.springframework.security.saml.websso.WebSSOProfileConsumerImpl;
-import org.springframework.security.saml.websso.WebSSOProfileImpl;
+import org.springframework.security.saml.websso.WebSSOProfileConsumer;
 import org.springframework.security.saml.websso.WebSSOProfileOptions;
+import org.springframework.util.Assert;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -27,6 +28,7 @@ import java.security.Principal;
 
 
 public abstract class SsoLoginServlet extends HttpServlet {
+
     private static final long serialVersionUID = 1L;
 
     public static final String OS_DESTINATION_KEY = "os_destination";
@@ -42,6 +44,7 @@ public abstract class SsoLoginServlet extends HttpServlet {
         super.init();
     }
 
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -49,17 +52,15 @@ public abstract class SsoLoginServlet extends HttpServlet {
         storeRedirectDestinationInSession(request);
 
         try {
-            SAMLContext context = new SAMLContext(request, saml2Config);
-            SAMLMessageContext messageContext = context.createSamlMessageContext(request, response);
+            SAMLContext context = getSamlContext();
+            SAMLMessageContext messageContext = context.getLocalAndPeerEntity(request, response);
 
             // Generate options for the current SSO request
-            WebSSOProfileOptions options = new WebSSOProfileOptions();
-            options.setBinding(saml2Config.getRequestBindingSetting());
-            options.setIncludeScoping(false);
+            WebSSOProfileOptions options = context.getSSOProfileOptions();
 
             // Send request
-            WebSSOProfile webSSOprofile = new WebSSOProfileImpl(context.getSamlProcessor(), context.getMetadataManager());
-            webSSOprofile.sendAuthenticationRequest(messageContext, options);
+            context.getWebSSOProfile(SAMLProcessorProvider.getProcessor())
+                    .sendAuthenticationRequest(messageContext, options);
         } catch (Exception e) {
             redirectToLoginWithSAMLError(response, e, "general");
         }
@@ -95,16 +96,18 @@ public abstract class SsoLoginServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException {
         try {
-            SAMLContext context = new SAMLContext(request, saml2Config);
-            SAMLMessageContext messageContext = context.createSamlMessageContext(request, response);
+            SAMLContext context = getSamlContext();
+            SAMLMessageContext messageContext = context.getLocalEntity(request, response);
 
             // Process response
-            context.getSamlProcessor().retrieveMessage(messageContext);
+            SAMLProcessor processor = SAMLProcessorProvider.getProcessor();
 
-            messageContext.setLocalEntityEndpoint(SAMLUtil.getEndpoint(messageContext.getLocalEntityRoleMetadata().getEndpoints(), messageContext.getInboundSAMLBinding(), new HttpServletRequestAdapter(request)));
+            processor.retrieveMessage(messageContext);
 
-            WebSSOProfileConsumerImpl consumer = new WebSSOProfileConsumerImpl(context.getSamlProcessor(), context.getMetadataManager());
-            consumer.setMaxAuthenticationAge(saml2Config.getMaxAuthenticationAge());
+            messageContext.setLocalEntityEndpoint(SAMLUtil.getEndpoint(messageContext.getLocalEntityRoleMetadata().getEndpoints(),
+                    messageContext.getInboundSAMLBinding(), new HttpServletRequestAdapter(request)));
+
+            WebSSOProfileConsumer consumer = context.getWebSSOProfileConsumer(processor);
             credential = consumer.processAuthenticationResponse(messageContext);
 
             request.getSession().setAttribute("SAMLCredential", credential);
@@ -141,12 +144,12 @@ public abstract class SsoLoginServlet extends HttpServlet {
         }
         response.sendRedirect(redirectUrl);
     }
-    
+
     /**
      * Filters a redirect URL before redirection happens.
      * <p>
      * This method should be overridden to have final control of the redirect URL.
-     * 
+     *
      * @param redirectUrl The redirect URL to be filtered.
      * @return The filtered redirect URL.
      */
@@ -175,5 +178,11 @@ public abstract class SsoLoginServlet extends HttpServlet {
 
     public void setSaml2Config(SAMLConfig saml2Config) {
         this.saml2Config = saml2Config;
+    }
+
+    private SAMLContext getSamlContext() {
+        SAMLContext context = saml2Config.getSamlContext();
+        Assert.notNull(context, "SAML Security context is not initialized");
+        return context;
     }
 }
