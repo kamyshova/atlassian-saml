@@ -13,13 +13,13 @@ import org.slf4j.LoggerFactory;
 public class SAMLConfig {
     private static final Logger logger = LoggerFactory.getLogger(SAMLConfig.class);
 
-    private PluginSettings pluginSettings;
+    protected PluginSettings pluginSettings;
 
     private volatile SAMLContext samlContext;
 
     public static final String LOGIN_URL_SETTING = "saml2.loginUrl";
     public static final String LOGOUT_URL_SETTING = "saml2.logoutUrl";
-    public static final String UID_ATTRIBUTE_SETTING = "salm2.uidAttribute";
+    public static final String UID_ATTRIBUTE_SETTING = "saml2.uidAttribute";
     public static final String IDP_REQUIRED_SETTING = "saml2.idpRequired";
     public static final String REDIRECT_URL_SETTING = "saml2.redirectUrl";
     public static final String AUTO_CREATE_USER_SETTING = "saml2.autoCreateUser";

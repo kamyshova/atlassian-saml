@@ -94,7 +94,9 @@ public abstract class SsoLoginServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException {
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response
+    ) throws ServletException {
         try {
             SAMLContext context = getSamlContext();
             SAMLMessageContext messageContext = context.getLocalEntity(request, response);
@@ -113,14 +115,19 @@ public abstract class SsoLoginServlet extends HttpServlet {
             request.getSession().setAttribute("SAMLCredential", credential);
 
             String uidAttribute = saml2Config.getUidAttribute();
-            String userName = uidAttribute.equals("NameID") ? credential.getNameID().getValue() : credential.getAttributeAsString(uidAttribute);
-            authenticateUserAndLogin(request, response, userName);
+            String userId = uidAttribute.equals("NameID")
+                    ? credential.getNameID().getValue()
+                    : credential.getAttributeAsString(uidAttribute);
+            authenticateUserAndLogin(request, response, userId);
         } catch (Exception e) {
             redirectToLoginWithSAMLError(response, e, "plugin_exception");
         }
     }
 
-    protected abstract void authenticateUserAndLogin(HttpServletRequest request, HttpServletResponse response, String username) throws Exception;
+    protected abstract void authenticateUserAndLogin(HttpServletRequest request,
+                                                     HttpServletResponse response,
+                                                     String userId
+    ) throws Exception;
 
     protected Boolean authoriseUserAndEstablishSession(DefaultAuthenticator authenticator, Object userObject, HttpServletRequest request, HttpServletResponse response) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         //Note: Need to use reflection to call the protected DefaultAuthenticator.authoriseUserAndEstablishSession
